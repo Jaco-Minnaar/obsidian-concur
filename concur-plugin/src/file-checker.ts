@@ -1,6 +1,5 @@
 import { FileSystemAdapter, normalizePath, Plugin, request } from "obsidian";
 import { ConcurFile } from "./models/file";
-import { createHash } from "node:crypto";
 
 type Timestamps = { [path: string]: number };
 
@@ -16,19 +15,18 @@ export class FileChecker {
 		const vault = this.plugin.app.vault;
 		const adapter = vault.adapter as FileSystemAdapter;
 
-		if (!vault.adapter.exists(CONCUR_DIR)) {
+		if (!(await vault.adapter.exists(CONCUR_DIR))) {
 			adapter.mkdir(CONCUR_DIR);
 		}
 
 		let timestamps: Timestamps;
-		if (!adapter.exists(TIMESTAMP_FILE)) {
+		if (!(await adapter.exists(TIMESTAMP_FILE))) {
 			timestamps = {};
 		} else {
 			timestamps = JSON.parse(await adapter.read(TIMESTAMP_FILE));
 		}
 
-		// const lastSync = Math.floor(timestamps.lastSync / 1000 ?? 0);
-		const lastSync = 0;
+		const lastSync = Math.floor(timestamps.lastSync / 1000) || 0;
 		const remoteFilesJson = await request({
 			url: `http://localhost:3000/file?last_sync=${lastSync}`,
 			method: "GET",
@@ -59,13 +57,11 @@ export class FileChecker {
 		);
 		const data: ConcurFile[] = await Promise.all(
 			filesToUpdate.map(async (file) => {
-				const hash = createHash("md5");
 				const content = await vault.cachedRead(file);
 				return {
 					vaultId: this.vaultId,
 					path: file.path,
 					content: content,
-					hash: hash.update(content).digest("base64"),
 				};
 			}),
 		);
