@@ -24,34 +24,33 @@ async fn save(
     State(state): State<Arc<ServerState>>,
     Json(values): Json<Vec<File>>,
 ) -> Result<(), AppError> {
-    let mut tasks = Vec::with_capacity(values.len());
     let now = Utc::now().naive_utc();
-    for value in values {
-        let mut hasher = Md5::new();
-        hasher.update(&value.content);
-        let hash = Base64::encode_string(&hasher.finalize());
-        tasks.push(
-            sqlx::query!(
-                r#"
-                    INSERT INTO file (path, vault_id, content, hash, last_sync) 
-                    VALUES (?, ?, ?, ?, ?) 
-                    ON DUPLICATE KEY 
-                        UPDATE content = ?, hash = ?, last_sync = ?
-                "#,
-                &value.path,
-                &value.vault_id,
-                &value.content,
-                &hash,
-                &now,
-                &value.content,
-                &hash,
-                &now
-            )
-            .execute(&state.pool),
-        );
+
+    let params = vec!["(?, ?, ?, ?, ?)"; values.len()].join(", ");
+
+    let query_str = format!(
+        r#"
+            INSERT INTO file (path, vault_id, content, hash, last_sync)
+            VALUES {}
+            ON DUPLICATE KEY
+                UPDATE content = VALUES(content), hash = VALUES(hash), last_sync = VALUES(last_sync)
+        "#,
+        params
+    );
+
+    let mut query = sqlx::query(&query_str);
+
+    for file in values {
+        let hash = Base64::encode_string(Md5::digest(&file.content).as_slice());
+
+        query = query.bind(file.path);
+        query = query.bind(file.vault_id);
+        query = query.bind(file.content);
+        query = query.bind(hash);
+        query = query.bind(now);
     }
 
-    future::try_join_all(tasks).await?;
+    query.execute(&state.pool).await?;
 
     Ok(())
 }
@@ -72,8 +71,10 @@ async fn get_unsynced(
             SELECT id, path, vault_id, content, hash, last_sync
             FROM file
             WHERE last_sync > ?
+            AND vault_id = ?
         "#,
-        &last_sync
+        &last_sync,
+        &query.vault_id
     )
     .fetch_all(&state.pool)
     .await?;
@@ -86,6 +87,7 @@ async fn get_unsynced(
 #[derive(Deserialize, Debug)]
 struct LastSync {
     last_sync: i64,
+    vault_id: i32,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

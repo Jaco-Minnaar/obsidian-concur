@@ -16,7 +16,7 @@ export class FileChecker {
 		const adapter = vault.adapter as FileSystemAdapter;
 
 		if (!(await vault.adapter.exists(CONCUR_DIR))) {
-			adapter.mkdir(CONCUR_DIR);
+			await adapter.mkdir(CONCUR_DIR);
 		}
 
 		let timestamps: Timestamps;
@@ -28,7 +28,7 @@ export class FileChecker {
 
 		const lastSync = Math.floor(timestamps.lastSync / 1000) || 0;
 		const remoteFilesJson = await request({
-			url: `http://localhost:3000/file?last_sync=${lastSync}`,
+			url: `http://localhost:3000/file?last_sync=${lastSync}&vault_id=${this.vaultId}`,
 			method: "GET",
 		});
 
