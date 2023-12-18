@@ -1,0 +1,23 @@
+[package]
+name = "concur-server"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.75"
+axum = { version = "0.6.20", features = ["tracing", "macros", "query"]}
+base64ct = "1.6.0"
+chrono = { version = "0.4.31", features = ["serde"] }
+dotenvy = "0.15.7"
+futures = "0.3.29"
+itertools = "0.12.0"
+log = "0.4.20"
+md-5 = "0.10.6"
+serde = { version = "1.0.193", features = ["derive"] }
+serde_json = "1.0.108"
+sqlx = { version = "0.7.3", features = ["mysql", "tls-rustls", "macros", "runtime-tokio", "chrono"] }
+tokio = { version = "1.34.0", features = ["full"] }
+tracing = "0.1.40"
+tracing-subscriber = "0.3.18"

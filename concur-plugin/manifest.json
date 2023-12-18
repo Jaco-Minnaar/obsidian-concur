@@ -1,0 +1,10 @@
+{
+	"id": "obsidian-concur",
+	"name": "Concur",
+	"version": "0.1.0",
+	"minAppVersion": "0.15.0",
+	"description": "Syncs vaults on different devices with one another.",
+	"author": "Obsidian",
+	"authorUrl": "https://jacominnaar.com",
+	"isDesktopOnly": false
+}
