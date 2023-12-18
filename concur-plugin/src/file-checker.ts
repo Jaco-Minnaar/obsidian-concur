@@ -6,12 +6,20 @@ type Timestamps = { [path: string]: number };
 const CONCUR_DIR = normalizePath(".concur");
 const TIMESTAMP_FILE = `${CONCUR_DIR}/concur_timestamps.json`;
 export class FileChecker {
+	private busy = false;
+
 	constructor(
 		private readonly plugin: Plugin,
 		private readonly vaultId: number,
 	) {}
 
 	async checkForChanges() {
+		if (this.busy) {
+			console.log("Already busy concuring");
+			return;
+		}
+
+		this.busy = true;
 		const vault = this.plugin.app.vault;
 		const adapter = vault.adapter as FileSystemAdapter;
 
@@ -32,18 +40,27 @@ export class FileChecker {
 			method: "GET",
 		});
 
-		const remoteFiles = JSON.parse(remoteFilesJson) as ConcurFile[];
+		const remoteFiles = JSON.parse(remoteFilesJson) as {
+			files: ConcurFile[];
+		};
+		console.log("Remote files", remoteFiles.files.length);
 
 		const files = vault.getMarkdownFiles();
 
-		for (let i = 0; i < remoteFiles.length; i++) {
-			const file = remoteFiles[i];
+		for (let i = 0; i < remoteFiles.files.length; i++) {
+			const file = remoteFiles.files[i];
 			const existing = files.find((f) => f.path === file.path);
 
 			if (existing) {
-				vault.modify(existing, file.content);
+				await vault.modify(existing, file.content);
 			} else {
-				vault.create(file.path, file.content);
+				const normalizedPath = normalizePath(
+					file.path.split("/").slice(0, -1).join("/"),
+				);
+				if (!(await vault.adapter.exists(normalizedPath))) {
+					await vault.adapter.mkdir(normalizedPath);
+				}
+				await vault.create(file.path, file.content);
 			}
 		}
 
@@ -80,5 +97,7 @@ export class FileChecker {
 			timestamps.lastSync = Date.now();
 			await adapter.write(TIMESTAMP_FILE, JSON.stringify(timestamps));
 		}
+
+		this.busy = false;
 	}
 }
