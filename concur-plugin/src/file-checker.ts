@@ -1,4 +1,5 @@
-import { FileSystemAdapter, normalizePath, Plugin, request } from "obsidian";
+import { FileSystemAdapter, normalizePath, request } from "obsidian";
+import ConcurPlugin from "./main";
 import { ConcurFile } from "./models/file";
 
 type Timestamps = { [path: string]: number };
@@ -9,17 +10,23 @@ export class FileChecker {
 	private busy = false;
 
 	constructor(
-		private readonly plugin: Plugin,
+		private readonly plugin: ConcurPlugin,
 		private readonly vaultId: number,
 	) {}
 
-	async checkForChanges() {
+	checkForChanges(): Promise<void> {
 		if (this.busy) {
 			console.log("Already busy concuring");
-			return;
+			return Promise.resolve();
 		}
 
 		this.busy = true;
+
+		return this.check().finally(() => (this.busy = false));
+	}
+
+	private async check(): Promise<void> {
+		const apiUrl = this.plugin.settings.apiUrl;
 		const vault = this.plugin.app.vault;
 		const adapter = vault.adapter as FileSystemAdapter;
 
@@ -38,7 +45,7 @@ export class FileChecker {
 		let remoteFilesJson: string;
 		try {
 			remoteFilesJson = await request({
-				url: `http://localhost:8000/file?last_sync=${lastSync}&vault_id=${this.vaultId}`,
+				url: `${apiUrl}/file?last_sync=${lastSync}&vault_id=${this.vaultId}`,
 				method: "GET",
 			});
 		} catch (e) {
@@ -95,7 +102,7 @@ export class FileChecker {
 			}
 			try {
 				await request({
-					url: "http://localhost:8000/file",
+					url: `${apiUrl}/file`,
 					method: "POST",
 					body: JSON.stringify(data),
 					contentType: "application/json",
@@ -106,7 +113,5 @@ export class FileChecker {
 			timestamps.lastSync = Date.now();
 			await adapter.write(TIMESTAMP_FILE, JSON.stringify(timestamps));
 		}
-
-		this.busy = false;
 	}
 }

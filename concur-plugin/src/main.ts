@@ -8,7 +8,7 @@ interface ConcurSettings {
 }
 
 const DEFAULT_SETTINGS: ConcurSettings = {
-	apiUrl: "",
+	apiUrl: "https://concur-server.shuttleapp.rs",
 };
 
 export default class ConcurPlugin extends Plugin {
@@ -46,6 +46,8 @@ export default class ConcurPlugin extends Plugin {
 			await this.loadData(),
 		);
 
+		this.settings = data;
+
 		if (!data.vault_id) {
 			let vault: Vault = {
 				name: this.app.vault.getName(),
@@ -53,7 +55,7 @@ export default class ConcurPlugin extends Plugin {
 
 			vault = JSON.parse(
 				await request({
-					url: "http://localhost:8000/vault",
+					url: `${data.apiUrl}/vault`,
 					method: "POST",
 					body: JSON.stringify(vault),
 					contentType: "application/json",
@@ -67,8 +69,6 @@ export default class ConcurPlugin extends Plugin {
 			data.vault_id = vault.id;
 			await this.saveSettings();
 		}
-
-		this.settings = data;
 	}
 
 	async saveSettings() {
