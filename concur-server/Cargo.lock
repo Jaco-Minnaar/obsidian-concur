@@ -332,6 +332,7 @@ dependencies = [
  "serde_json",
  "shuttle-axum",
  "shuttle-runtime",
+ "shuttle-secrets",
  "sqlx",
  "tokio",
  "tracing",
@@ -1825,6 +1826,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "secrecy"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9bd1c54ea06cfd2f6b63219704de0b9b4f72dcc2b8fdef820be6cd799780e91e"
+dependencies = [
+ "serde",
+ "zeroize",
+]
+
+[[package]]
 name = "semver"
 version = "1.0.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2020,6 +2031,18 @@ dependencies = [
  "tonic 0.10.2",
  "tower",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "shuttle-secrets"
+version = "0.35.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "95f328ab4dc937400a07d3b7e96ae84eaae8eefe756ef533c3c0545fd2f155ab"
+dependencies = [
+ "async-trait",
+ "secrecy",
+ "serde",
+ "shuttle-service",
 ]
 
 [[package]]
