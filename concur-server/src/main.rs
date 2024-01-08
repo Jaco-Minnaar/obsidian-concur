@@ -8,10 +8,16 @@ use dotenvy::dotenv;
 use routes::{file::file, vault::vault, ServerState};
 use sqlx::MySqlPool;
 
-#[tokio::main]
-async fn main() {
+#[shuttle_runtime::main]
+async fn axum() -> shuttle_axum::ShuttleAxum {
+    let router = start().await;
+
+    Ok(router.into())
+}
+
+async fn start() -> Router {
     dotenv().ok();
-    tracing_subscriber::fmt::init();
+    // tracing_subscriber::fmt::init();
 
     let database_url = env::var("DATABASE_URL").expect("Could not get database URL");
     let pool = MySqlPool::connect(&database_url)
@@ -25,8 +31,5 @@ async fn main() {
         .nest("/vault", vault())
         .with_state(state);
 
-    axum::Server::bind(&"0.0.0.0:3000".parse().unwrap())
-        .serve(app.into_make_service())
-        .await
-        .expect("Failed to init axum");
+    app
 }

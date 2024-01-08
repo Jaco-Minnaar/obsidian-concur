@@ -8,7 +8,7 @@ use axum::{
 };
 use base64ct::{Base64, Encoding};
 use chrono::{DateTime, Utc};
-use futures::future;
+
 use md5::{Digest, Md5};
 use serde::{Deserialize, Serialize};
 
