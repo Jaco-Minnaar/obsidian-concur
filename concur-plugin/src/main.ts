@@ -2,8 +2,6 @@ import { App, Plugin, PluginSettingTab, request, Setting } from "obsidian";
 import { FileChecker } from "./file-checker";
 import { Vault } from "./models/vault";
 
-// Remember to rename these classes and interfaces!
-
 interface ConcurSettings {
 	apiUrl: string;
 	vault_id?: number;
@@ -55,7 +53,7 @@ export default class ConcurPlugin extends Plugin {
 
 			vault = JSON.parse(
 				await request({
-					url: "http://localhost:3000/vault",
+					url: "http://localhost:8000/vault",
 					method: "POST",
 					body: JSON.stringify(vault),
 					contentType: "application/json",

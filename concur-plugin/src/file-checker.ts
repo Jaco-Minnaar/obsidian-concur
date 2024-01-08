@@ -35,10 +35,15 @@ export class FileChecker {
 		}
 
 		const lastSync = Math.floor(timestamps.lastSync / 1000) || 0;
-		const remoteFilesJson = await request({
-			url: `http://localhost:3000/file?last_sync=${lastSync}&vault_id=${this.vaultId}`,
-			method: "GET",
-		});
+		let remoteFilesJson: string;
+		try {
+			remoteFilesJson = await request({
+				url: `http://localhost:8000/file?last_sync=${lastSync}&vault_id=${this.vaultId}`,
+				method: "GET",
+			});
+		} catch (e) {
+			return;
+		}
 
 		const remoteFiles = JSON.parse(remoteFilesJson) as {
 			files: ConcurFile[];
@@ -88,12 +93,16 @@ export class FileChecker {
 				const updatedFile = filesToUpdate[i];
 				timestamps[updatedFile.path] = updatedFile.stat.mtime;
 			}
-			await request({
-				url: "http://localhost:3000/file",
-				method: "POST",
-				body: JSON.stringify(data),
-				contentType: "application/json",
-			});
+			try {
+				await request({
+					url: "http://localhost:8000/file",
+					method: "POST",
+					body: JSON.stringify(data),
+					contentType: "application/json",
+				});
+			} catch (e) {
+				return;
+			}
 			timestamps.lastSync = Date.now();
 			await adapter.write(TIMESTAMP_FILE, JSON.stringify(timestamps));
 		}
