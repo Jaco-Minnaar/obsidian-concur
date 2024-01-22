@@ -40,6 +40,11 @@ export default class ConcurPlugin extends Plugin {
 	onunload() {}
 
 	async loadSettings() {
+		await this.initSettings();
+		await this.saveSettings();
+	}
+
+	async initSettings() {
 		const data: ConcurSettings = Object.assign(
 			{},
 			DEFAULT_SETTINGS,
@@ -53,21 +58,33 @@ export default class ConcurPlugin extends Plugin {
 				name: this.app.vault.getName(),
 			};
 
-			vault = JSON.parse(
-				await request({
+			if (!data.apiUrl) {
+				console.warn("Concur: No API URL set");
+				return;
+			}
+
+			let resp: string;
+
+			try {
+				resp = await request({
 					url: `${data.apiUrl}/vault`,
 					method: "POST",
 					body: JSON.stringify(vault),
 					contentType: "application/json",
-				}),
-			);
+				});
+			} catch (e) {
+				console.warn("Concur: Could not create vault");
+				return;
+			}
+
+			vault = JSON.parse(resp);
 
 			if (!vault.id) {
-				throw new Error("Could not get vault ID");
+				console.warn("Concur: Could not get vault ID");
+				return;
 			}
 
 			data.vault_id = vault.id;
-			await this.saveSettings();
 		}
 	}
 
