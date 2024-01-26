@@ -2,13 +2,18 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
+use oauth2::{basic::BasicClient, url::Url, CsrfToken};
 use sqlx::{MySql, Pool};
 
+pub mod auth;
 pub mod file;
 pub mod vault;
 
 pub struct ServerState {
     pub pool: Pool<MySql>,
+    pub auth_url: Url,
+    pub csrf_token: CsrfToken,
+    pub auth_client: BasicClient,
 }
 
 // Make our own error that wraps `anyhow::Error`.
