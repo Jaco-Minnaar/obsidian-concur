@@ -1,7 +1,10 @@
 mod models;
 mod routes;
 
-use std::sync::Arc;
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 
 use axum::{http, Router};
 use dotenvy::dotenv;
@@ -12,7 +15,8 @@ use routes::{auth::auth, file::file, vault::vault, ServerState};
 use shuttle_axum::ShuttleAxum;
 use shuttle_secrets::SecretStore;
 use sqlx::MySqlPool;
-use tower_http::cors::{Any, Cors, CorsLayer};
+use tower_http::cors::{Any, CorsLayer};
+use tracing::{debug, info};
 
 struct Config {
     database_url: String,
@@ -22,6 +26,7 @@ struct Config {
 
 #[shuttle_runtime::main]
 async fn axum(#[shuttle_secrets::Secrets] secret_store: SecretStore) -> ShuttleAxum {
+    debug!("Debug logging is enabled.");
     let database_url = secret_store
         .get("DATABASE_URL")
         .expect("Could not get database URL.");
@@ -41,6 +46,7 @@ async fn axum(#[shuttle_secrets::Secrets] secret_store: SecretStore) -> ShuttleA
 
     let router = start(config).await;
 
+    info!("Starting Server");
     Ok(router.into())
 }
 
@@ -81,6 +87,7 @@ async fn start(config: Config) -> Router {
         auth_url,
         csrf_token,
         auth_client,
+        client_ids: Mutex::new(HashMap::new()),
     });
 
     let app: Router = Router::new()

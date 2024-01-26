@@ -49,13 +49,13 @@ export class FileChecker {
 				method: "GET",
 			});
 		} catch (e) {
+			console.warn("Concur: Could not get remote files");
 			return;
 		}
 
 		const remoteFiles = JSON.parse(remoteFilesJson) as {
 			files: ConcurFile[];
 		};
-		console.log("Remote files", remoteFiles.files.length);
 
 		const files = vault.getMarkdownFiles();
 
@@ -80,10 +80,6 @@ export class FileChecker {
 			(file) => timestamps[file.path]?.valueOf() != file.stat.mtime,
 		);
 
-		console.log(
-			"Updating files",
-			filesToUpdate.map((f) => f.path),
-		);
 		const data: ConcurFile[] = await Promise.all(
 			filesToUpdate.map(async (file) => {
 				const content = await vault.cachedRead(file);

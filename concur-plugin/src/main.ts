@@ -4,7 +4,9 @@ import { Vault } from "./models/vault";
 
 interface ConcurSettings {
 	apiUrl: string;
-	vault_id?: number;
+	vaultId?: number;
+	clientId?: string;
+	authToken?: string;
 }
 
 const DEFAULT_SETTINGS: ConcurSettings = {
@@ -18,11 +20,13 @@ export default class ConcurPlugin extends Plugin {
 	async onload() {
 		await this.loadSettings();
 
-		if (!this.settings.vault_id) {
+		if (!this.settings.vaultId) {
 			throw new Error("Could not get vault ID");
 		}
 
-		this.fileChecker = new FileChecker(this, this.settings.vault_id);
+		console.log("Concur: Loaded plugin");
+		console.log("Concur: Vault ID", this.settings.vaultId);
+		this.fileChecker = new FileChecker(this, this.settings.vaultId);
 
 		// This adds a status bar item to the bottom of the app. Does not work on mobile apps.
 		const statusBarItemEl = this.addStatusBarItem();
@@ -53,7 +57,7 @@ export default class ConcurPlugin extends Plugin {
 
 		this.settings = data;
 
-		if (!data.vault_id) {
+		if (!data.vaultId) {
 			let vault: Vault = {
 				name: this.app.vault.getName(),
 			};
@@ -66,6 +70,7 @@ export default class ConcurPlugin extends Plugin {
 			let resp: string;
 
 			try {
+				console.log("Concur: Creating vault");
 				resp = await request({
 					url: `${data.apiUrl}/vault`,
 					method: "POST",
@@ -84,7 +89,9 @@ export default class ConcurPlugin extends Plugin {
 				return;
 			}
 
-			data.vault_id = vault.id;
+			console.log("Concur: Got vault ID", vault.id);
+
+			data.vaultId = vault.id;
 		}
 	}
 
@@ -118,5 +125,59 @@ class ConcurSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					}),
 			);
+
+		containerEl.createEl("button", { text: "Validate" }, (el) =>
+			el.onClickEvent(async () => {
+				let resp: string;
+				try {
+					console.log("Concur: Validating address");
+					resp = await request({
+						url: `${this.plugin.settings.apiUrl}/auth/client_id`,
+						method: "POST",
+					});
+				} catch (e) {
+					console.warn("Concur: Could not start session");
+					console.error(e);
+					return;
+				}
+
+				const { clientId } = JSON.parse(resp);
+				this.plugin.settings.clientId = clientId;
+				await this.plugin.saveSettings();
+
+				el.toggleVisibility(false);
+
+				containerEl.createEl(
+					"a",
+					{
+						text: "Login",
+						href: `${this.plugin.settings.apiUrl}/auth?client_id=${clientId}`,
+					},
+					(el) =>
+						el.onClickEvent(async () => {
+							console.log("Concur: Starting session");
+							let startResp: string;
+							try {
+								startResp = await request({
+									url: `${this.plugin.settings.apiUrl}/auth/start?client_id=${clientId}`,
+									method: "GET",
+								});
+							} catch (e) {
+								console.warn("Concur: Could not start session");
+								console.error(e);
+								return;
+							}
+
+							const { accessToken } = JSON.parse(startResp);
+							console.log(
+								"Concur: Got access token",
+								accessToken,
+							);
+							this.plugin.settings.authToken = accessToken;
+							await this.plugin.saveSettings();
+						}),
+				);
+			}),
+		);
 	}
 }

@@ -60,7 +60,6 @@ async fn get_unsynced(
     State(state): State<Arc<ServerState>>,
     Query(query): Query<LastSync>,
 ) -> Result<Json<Files>, AppError> {
-    dbg!(&query);
     let last_sync = DateTime::from_timestamp(query.last_sync, 0)
         .ok_or(anyhow!("Invalid timestamp"))?
         .naive_utc();

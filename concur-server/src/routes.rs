@@ -1,9 +1,13 @@
+use std::{collections::HashMap, sync::Mutex};
+
 use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
+use chrono::{DateTime, Utc};
 use oauth2::{basic::BasicClient, url::Url, CsrfToken};
 use sqlx::{MySql, Pool};
+use tokio::sync::oneshot::{Receiver, Sender};
 
 pub mod auth;
 pub mod file;
@@ -14,6 +18,16 @@ pub struct ServerState {
     pub auth_url: Url,
     pub csrf_token: CsrfToken,
     pub auth_client: BasicClient,
+    pub client_ids: Mutex<
+        HashMap<
+            String,
+            (
+                DateTime<Utc>,
+                Option<Receiver<String>>,
+                Option<Sender<String>>,
+            ),
+        >,
+    >,
 }
 
 // Make our own error that wraps `anyhow::Error`.

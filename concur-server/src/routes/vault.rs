@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use axum::{debug_handler, extract::State, http::StatusCode, routing, Json, Router};
+use tracing::debug;
 
 use crate::models::vault::Vault;
 
@@ -21,11 +22,15 @@ async fn save(
         .expect("Failed to execute query");
 
     if let Some(vault) = vault {
-        log::debug!("Found vault {}.", vault.name);
+        debug!(
+            "Found vault {} with ID {}.",
+            vault.name,
+            vault.id.ok_or("No ID found").unwrap()
+        );
         return (StatusCode::OK, Json(vault));
     }
 
-    log::debug!("Creating vault {}", &value.name);
+    debug!("Creating vault {}", &value.name);
     sqlx::query!("INSERT INTO vault (name) VALUES (?)", &value.name)
         .execute(&state.pool)
         .await
