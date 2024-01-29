@@ -1,14 +1,16 @@
 use std::sync::Arc;
 
-use axum::{debug_handler, extract::State, http::StatusCode, routing, Json, Router};
+use axum::{debug_handler, extract::State, http::StatusCode, middleware, routing, Json, Router};
 use tracing::debug;
 
-use crate::models::vault::Vault;
+use crate::{auth::jwt_middleware, models::vault::Vault};
 
 use super::ServerState;
 
 pub fn vault() -> Router<Arc<ServerState>> {
-    Router::new().route("/", routing::post(save))
+    Router::new()
+        .route("/", routing::post(save))
+        .layer(middleware::from_fn(jwt_middleware))
 }
 
 #[debug_handler]

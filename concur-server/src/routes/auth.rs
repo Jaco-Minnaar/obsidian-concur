@@ -2,15 +2,20 @@ use std::{collections::HashMap, sync::Arc};
 
 use axum::{
     extract::{Query, State},
-    response::{Html, Redirect},
+    http::StatusCode,
+    response::{Html, IntoResponse},
     routing, Json, Router,
 };
-use chrono::Utc;
+use chrono::{Duration, Utc};
+use jsonwebtoken::{encode, EncodingKey, Header};
 use oauth2::{reqwest::async_http_client, AuthorizationCode, CsrfToken, TokenResponse};
+use reqwest::Client;
 use serde::Serialize;
 use tokio::sync::oneshot;
 use tracing::{debug, info};
 use uuid::Uuid;
+
+use crate::auth::Claims;
 
 use super::{AppError, ServerState};
 
@@ -18,9 +23,8 @@ pub fn auth() -> Router<Arc<ServerState>> {
     Router::new()
         .route("/", routing::get(auth_page))
         .route("/client_id", routing::post(get_client_id))
-        .route("/start", routing::get(start))
         .route("/redirect", routing::get(redirect))
-        .route("/token", routing::post(token))
+        .route("/token", routing::get(get_token).post(set_token))
 }
 
 async fn auth_page(
@@ -75,7 +79,7 @@ async fn get_client_id(
     Ok(Json(StartResponse { client_id }))
 }
 
-async fn start(
+async fn get_token(
     State(state): State<Arc<ServerState>>,
     Query(params): Query<HashMap<String, String>>,
 ) -> Result<Json<ConcurTokenResponse>, AppError> {
@@ -102,6 +106,41 @@ async fn start(
         .or(Err(anyhow::anyhow!("Failed to receive token")))?;
 
     debug!("Received token: {}", token);
+
+    let req_client = Client::new();
+    let response = req_client
+        .get("https://api.github.com/user")
+        .bearer_auth(&token)
+        .header("User-Agent", "Concur")
+        .send()
+        .await?;
+
+    if !response.status().is_success() {
+        tracing::error!("Failed to authenticate user: {:?}", response.text().await?);
+        return Err(AppError::Status(
+            StatusCode::UNAUTHORIZED,
+            "Could not authenticate user".to_string(),
+        ));
+    }
+
+    let now = Utc::now();
+    let claims = Claims {
+        exp: now
+            .checked_add_signed(Duration::minutes(60))
+            .ok_or(anyhow::anyhow!("Failed to add duration"))?
+            .timestamp() as usize,
+        iat: now.timestamp() as usize,
+        sub: client_id.to_string(),
+    };
+
+    // read key from file at compile time
+    let secret = include_bytes!("../../key");
+
+    let token = encode(
+        &Header::default(),
+        &claims,
+        &EncodingKey::from_secret(secret),
+    )?;
 
     Ok(Json(ConcurTokenResponse {
         access_token: token,
@@ -169,7 +208,7 @@ async fn redirect(
     )))
 }
 
-async fn token(
+async fn set_token(
     State(state): State<Arc<ServerState>>,
     Json(params): Json<HashMap<String, String>>,
 ) -> Result<(), AppError> {

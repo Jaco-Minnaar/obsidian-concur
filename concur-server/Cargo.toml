@@ -26,3 +26,5 @@ tracing-subscriber = "0.3.18"
 tower-http = { version = "0.5.1", features = ["cors"] }
 oauth2 = "4.4.2"
 uuid = { version = "1.7.0", features = ["fast-rng", "v4"] }
+reqwest = "0.11.23"
+jsonwebtoken = "9.2.0"

@@ -4,7 +4,7 @@ use anyhow::anyhow;
 use axum::{
     debug_handler,
     extract::{Query, State},
-    routing, Json, Router,
+    middleware, routing, Json, Router,
 };
 use base64ct::{Base64, Encoding};
 use chrono::{DateTime, Utc};
@@ -12,18 +12,22 @@ use chrono::{DateTime, Utc};
 use md5::{Digest, Md5};
 use serde::{Deserialize, Serialize};
 
-use crate::models::file::File;
+use crate::{auth::jwt_middleware, models::file::File};
 
 use super::{AppError, ServerState};
 
 pub fn file() -> Router<Arc<ServerState>> {
-    Router::new().route("/", routing::get(get_unsynced).post(save))
+    Router::new()
+        .route("/", routing::get(get_unsynced).post(save))
+        .layer(middleware::from_fn(jwt_middleware))
 }
 
 async fn save(
     State(state): State<Arc<ServerState>>,
     Json(values): Json<Vec<File>>,
 ) -> Result<(), AppError> {
+    tracing::info!("Saving {} files", values.len());
+
     let now = Utc::now().naive_utc();
 
     let params = vec!["(?, ?, ?, ?, ?)"; values.len()].join(", ");
@@ -60,6 +64,8 @@ async fn get_unsynced(
     State(state): State<Arc<ServerState>>,
     Query(query): Query<LastSync>,
 ) -> Result<Json<Files>, AppError> {
+    tracing::info!("Getting unsynced files for vault {}.", query.vault_id);
+
     let last_sync = DateTime::from_timestamp(query.last_sync, 0)
         .ok_or(anyhow!("Invalid timestamp"))?
         .naive_utc();

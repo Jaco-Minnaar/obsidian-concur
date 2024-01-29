@@ -15,6 +15,10 @@ export class FileChecker {
 	) {}
 
 	checkForChanges(): Promise<void> {
+		if (!this.plugin.settings.authToken) {
+			return Promise.resolve();
+		}
+
 		if (this.busy) {
 			console.log("Already busy concuring");
 			return Promise.resolve();
@@ -46,6 +50,9 @@ export class FileChecker {
 		try {
 			remoteFilesJson = await request({
 				url: `${apiUrl}/file?last_sync=${lastSync}&vault_id=${this.vaultId}`,
+				headers: {
+					Authorization: `Bearer ${this.plugin.settings.authToken}`,
+				},
 				method: "GET",
 			});
 		} catch (e) {
@@ -99,6 +106,9 @@ export class FileChecker {
 			try {
 				await request({
 					url: `${apiUrl}/file`,
+					headers: {
+						Authorization: `Bearer ${this.plugin.settings.authToken}`,
+					},
 					method: "POST",
 					body: JSON.stringify(data),
 					contentType: "application/json",

@@ -67,6 +67,11 @@ export default class ConcurPlugin extends Plugin {
 				return;
 			}
 
+			if (!data.authToken) {
+				console.warn("Concur: No auth token set");
+				return;
+			}
+
 			let resp: string;
 
 			try {
@@ -74,6 +79,9 @@ export default class ConcurPlugin extends Plugin {
 				resp = await request({
 					url: `${data.apiUrl}/vault`,
 					method: "POST",
+					headers: {
+						Authorization: `Bearer ${data.authToken}`,
+					},
 					body: JSON.stringify(vault),
 					contentType: "application/json",
 				});
@@ -159,7 +167,7 @@ class ConcurSettingTab extends PluginSettingTab {
 							let startResp: string;
 							try {
 								startResp = await request({
-									url: `${this.plugin.settings.apiUrl}/auth/start?client_id=${clientId}`,
+									url: `${this.plugin.settings.apiUrl}/auth/token?client_id=${clientId}`,
 									method: "GET",
 								});
 							} catch (e) {
