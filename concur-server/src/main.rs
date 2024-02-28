@@ -1,7 +1,7 @@
 mod models;
 mod routes;
 
-use std::{env, sync::Arc};
+use std::sync::Arc;
 
 use axum::Router;
 use dotenvy::dotenv;
