@@ -1,6 +1,6 @@
-CREATE TABLE IF NOT EXISTS vault (
-    id INT NOT NULL AUTO_INCREMENT,
-    name varchar(100) NOT NULL,
-    PRIMARY KEY (id),
-    KEY idx_name (name)
+CREATE TABLE vault (
+    id              INTEGER     PRIMARY KEY,
+    vault_name      TEXT        NOT NULL
 );
+
+CREATE INDEX idx_name on vault (vault_name);

@@ -1,1 +1,1 @@
-ALTER TABLE file DROP INDEX uc_path_vault_id;
+DROP INDEX idx_path_vault_id;

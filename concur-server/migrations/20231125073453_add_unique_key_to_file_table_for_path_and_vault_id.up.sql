@@ -1,1 +1,2 @@
-ALTER TABLE file ADD CONSTRAINT uc_path_vault_id UNIQUE (path, vault_id);
+CREATE UNIQUE INDEX idx_path_vault_id 
+ON file (path, vault_id);

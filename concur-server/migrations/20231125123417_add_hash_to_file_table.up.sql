@@ -1,2 +1,4 @@
-ALTER TABLE file ADD hash VARCHAR(255) NOT NULL;
-ALTER TABLE file ADD INDEX idx_hash (hash);
+ALTER TABLE file ADD hash TEXT NOT NULL DEFAULT '';
+
+CREATE INDEX idx_hash 
+ON file (hash);
