@@ -1,4 +1,10 @@
-import { FileSystemAdapter, normalizePath, request } from "obsidian";
+import {
+	FileSystemAdapter,
+	normalizePath,
+	TAbstractFile,
+	TFile,
+} from "obsidian";
+import { getUnsyncedFiles, createFile, updateFile } from "./api/file";
 import ConcurPlugin from "./main";
 import { ConcurFile } from "./models/file";
 
@@ -14,7 +20,7 @@ export class FileChecker {
 		private readonly vaultId: number,
 	) {}
 
-	checkForChanges(): Promise<void> {
+	async checkForChanges(): Promise<void> {
 		if (this.busy) {
 			console.log("Already busy concuring");
 			return Promise.resolve();
@@ -23,6 +29,32 @@ export class FileChecker {
 		this.busy = true;
 
 		return this.check().finally(() => (this.busy = false));
+	}
+
+	async saveFile(file: TAbstractFile): Promise<void> {
+		const concurFile: ConcurFile = {
+			vaultId: this.vaultId,
+			path: file.path,
+			content: "",
+		};
+
+		await createFile(concurFile, this.plugin.settings.apiUrl);
+	}
+
+	async updateFile(
+		file: TFile,
+		data: string,
+		filePath?: string,
+	): Promise<void> {
+		filePath ??= file.path;
+
+		const concurFile: ConcurFile = {
+			vaultId: this.vaultId,
+			path: file.path,
+			content: data,
+		};
+
+		await updateFile(filePath, concurFile, this.plugin.settings.apiUrl);
 	}
 
 	private async check(): Promise<void> {
@@ -42,25 +74,23 @@ export class FileChecker {
 		}
 
 		const lastSync = Math.floor(timestamps.lastSync / 1000) || 0;
-		let remoteFilesJson: string;
+		let remoteFiles: ConcurFile[];
 		try {
-			remoteFilesJson = await request({
-				url: `${apiUrl}/file?last_sync=${lastSync}&vault_id=${this.vaultId}`,
-				method: "GET",
-			});
+			remoteFiles = await getUnsyncedFiles(
+				lastSync,
+				this.vaultId,
+				apiUrl,
+			);
 		} catch (e) {
 			return;
 		}
 
-		const remoteFiles = JSON.parse(remoteFilesJson) as {
-			files: ConcurFile[];
-		};
-		console.log("Remote files", remoteFiles.files.length);
+		console.log("Remote files", remoteFiles.length);
 
 		const files = vault.getMarkdownFiles();
 
-		for (let i = 0; i < remoteFiles.files.length; i++) {
-			const file = remoteFiles.files[i];
+		for (let i = 0; i < remoteFiles.length; i++) {
+			const file = remoteFiles[i];
 			const existing = files.find((f) => f.path === file.path);
 
 			if (existing) {
@@ -74,44 +104,6 @@ export class FileChecker {
 				}
 				await vault.create(file.path, file.content);
 			}
-		}
-
-		const filesToUpdate = files.filter(
-			(file) => timestamps[file.path]?.valueOf() != file.stat.mtime,
-		);
-
-		console.log(
-			"Updating files",
-			filesToUpdate.map((f) => f.path),
-		);
-		const data: ConcurFile[] = await Promise.all(
-			filesToUpdate.map(async (file) => {
-				const content = await vault.cachedRead(file);
-				return {
-					vaultId: this.vaultId,
-					path: file.path,
-					content: content,
-				};
-			}),
-		);
-
-		if (filesToUpdate.length > 0) {
-			for (let i = 0; i < filesToUpdate.length; i++) {
-				const updatedFile = filesToUpdate[i];
-				timestamps[updatedFile.path] = updatedFile.stat.mtime;
-			}
-			try {
-				await request({
-					url: `${apiUrl}/file`,
-					method: "POST",
-					body: JSON.stringify(data),
-					contentType: "application/json",
-				});
-			} catch (e) {
-				return;
-			}
-			timestamps.lastSync = Date.now();
-			await adapter.write(TIMESTAMP_FILE, JSON.stringify(timestamps));
 		}
 	}
 }

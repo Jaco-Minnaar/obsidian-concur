@@ -7,5 +7,7 @@ pub struct File {
     pub vault_id: i32,
     pub path: String,
     pub content: String,
+
+    #[serde(skip_deserializing)]
     pub last_sync: i64,
 }

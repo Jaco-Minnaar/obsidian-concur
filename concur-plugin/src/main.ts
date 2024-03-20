@@ -1,4 +1,5 @@
-import { App, Plugin, PluginSettingTab, request, Setting } from "obsidian";
+import { App, Plugin, PluginSettingTab, Setting } from "obsidian";
+import { getVault } from "./api/vault";
 import { FileChecker } from "./file-checker";
 import { Vault } from "./models/vault";
 
@@ -8,7 +9,7 @@ interface ConcurSettings {
 }
 
 const DEFAULT_SETTINGS: ConcurSettings = {
-	apiUrl: "https://concur-server.shuttleapp.rs",
+	apiUrl: "http://localhost:8080",
 };
 
 export default class ConcurPlugin extends Plugin {
@@ -35,6 +36,18 @@ export default class ConcurPlugin extends Plugin {
 		this.registerInterval(
 			window.setInterval(() => this.fileChecker.checkForChanges(), 5_000),
 		);
+
+		this.registerEvent(
+			this.app.vault.on("create", (file) =>
+				this.fileChecker.saveFile(file),
+			),
+		);
+
+		this.registerEvent(
+			this.app.metadataCache.on("changed", (file, data) =>
+				this.fileChecker.updateFile(file, data),
+			),
+		);
 	}
 
 	onunload() {}
@@ -54,33 +67,22 @@ export default class ConcurPlugin extends Plugin {
 		this.settings = data;
 
 		if (!data.vault_id) {
-			let vault: Vault = {
-				name: this.app.vault.getName(),
-			};
-
 			if (!data.apiUrl) {
-				console.warn("Concur: No API URL set");
+				console.error("Concur: No API URL set");
 				return;
 			}
 
-			let resp: string;
+			let vault: Vault;
 
 			try {
-				resp = await request({
-					url: `${data.apiUrl}/vault`,
-					method: "POST",
-					body: JSON.stringify(vault),
-					contentType: "application/json",
-				});
+				vault = await getVault(this.app.vault.getName(), data.apiUrl);
 			} catch (e) {
-				console.warn("Concur: Could not create vault");
+				console.error("Concur: Could not create vault");
 				return;
 			}
 
-			vault = JSON.parse(resp);
-
 			if (!vault.id) {
-				console.warn("Concur: Could not get vault ID");
+				console.error("Concur: Could not get vault ID");
 				return;
 			}
 

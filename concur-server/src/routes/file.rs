@@ -3,9 +3,12 @@ use std::sync::Arc;
 use axum::{
     debug_handler,
     extract::{Query, State},
+    http::StatusCode,
+    response::IntoResponse,
     routing, Json, Router,
 };
 use chrono::Utc;
+use log::info;
 use serde::{Deserialize, Serialize};
 
 use crate::models::file::File;
@@ -13,18 +16,23 @@ use crate::models::file::File;
 use super::{AppError, ServerState};
 
 pub fn file() -> Router<Arc<ServerState>> {
-    Router::new().route("/", routing::get(get_unsynced).post(add_file))
+    Router::new().route(
+        "/",
+        routing::get(get_unsynced).post(add_file).put(update_file),
+    )
 }
 
 async fn add_file(
     State(state): State<Arc<ServerState>>,
     Json(file): Json<File>,
 ) -> Result<(), AppError> {
+    info!("Adding file {:?}", file.path);
     let now = Utc::now().timestamp_millis();
+    dbg!(&file);
 
     let query_str = r#"
             INSERT INTO file (path, vault_id, content, last_sync)
-                VALUES (?1, ?2, ?3, ?4, ?5)
+                VALUES (?1, ?2, ?3, ?4)
         "#;
 
     state
@@ -38,12 +46,44 @@ async fn add_file(
     Ok(())
 }
 
+async fn update_file(
+    State(state): State<Arc<ServerState>>,
+    Json(request): Json<FileUpdateRequest>,
+) -> Result<impl IntoResponse, AppError> {
+    info!("Updating file {:?}", request.path);
+
+    let now = Utc::now().timestamp_millis();
+
+    let query_str = r#"
+            UPDATE file
+            SET path = ?1, content = ?2, last_sync = ?3
+            WHERE path = ?4 AND vault_id = ?5
+        "#;
+
+    state
+        .connection
+        .execute(
+            &query_str,
+            libsql::params!(
+                request.file.path,
+                request.file.content,
+                now,
+                request.path,
+                request.file.vault_id
+            ),
+        )
+        .await?;
+
+    Ok(StatusCode::OK)
+}
+
 #[debug_handler]
 async fn get_unsynced(
     State(state): State<Arc<ServerState>>,
     Query(query): Query<LastSync>,
 ) -> Result<Json<Files>, AppError> {
     log::info!("Getting unsynced files for vault {}", query.vault_id);
+    dbg!(&query);
 
     let mut unsynced = state
         .connection
@@ -81,6 +121,13 @@ async fn get_unsynced(
     let resp = Files { files };
 
     Ok(Json(resp))
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+struct FileUpdateRequest {
+    path: String,
+    file: File,
 }
 
 #[derive(Deserialize, Debug)]
