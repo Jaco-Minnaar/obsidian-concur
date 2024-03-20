@@ -1,8 +1,6 @@
-use chrono::{NaiveDateTime};
 use serde::{Deserialize, Serialize};
-use sqlx::FromRow;
 
-#[derive(Deserialize, Serialize, Debug, FromRow)]
+#[derive(Deserialize, Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct File {
     pub id: Option<i32>,
@@ -14,5 +12,5 @@ pub struct File {
     pub hash: String,
 
     #[serde(skip_deserializing)]
-    pub last_sync: NaiveDateTime,
+    pub last_sync: i64,
 }

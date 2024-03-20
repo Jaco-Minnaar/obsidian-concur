@@ -5,31 +5,29 @@ use std::sync::Arc;
 
 use axum::Router;
 use dotenvy::dotenv;
+use libsql::Connection;
 use routes::{file::file, vault::vault, ServerState};
 use shuttle_axum::ShuttleAxum;
-use shuttle_secrets::SecretStore;
-use sqlx::MySqlPool;
 
 #[shuttle_runtime::main]
-async fn axum(#[shuttle_secrets::Secrets] secret_store: SecretStore) -> ShuttleAxum {
-    let database_url = secret_store
-        .get("DATABASE_URL")
-        .expect("Could not get database URL.");
-
-    let router = start(&database_url).await;
+async fn axum(
+    #[shuttle_turso::Turso(
+        addr = "{secrets.LIBSQL_URL}",
+        token = "{secrets.LIBSQL_TOKEN}",
+        local_addr = "{secrets.LIBSQL_LOCAL_URL}"
+    )]
+    client: Connection,
+) -> ShuttleAxum {
+    let router = start(client).await;
 
     Ok(router.into())
 }
 
-async fn start(database_url: &str) -> Router {
+async fn start(connection: Connection) -> Router {
     dotenv().ok();
     // tracing_subscriber::fmt::init();
 
-    let pool = MySqlPool::connect(&database_url)
-        .await
-        .expect("Could not connect to database");
-
-    let state = Arc::new(ServerState { pool });
+    let state = Arc::new(ServerState { connection });
 
     let app: Router = Router::new()
         .nest("/file", file())

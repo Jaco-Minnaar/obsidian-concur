@@ -2,13 +2,13 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
-use sqlx::{MySql, Pool};
+use libsql::Connection;
 
 pub mod file;
 pub mod vault;
 
 pub struct ServerState {
-    pub pool: Pool<MySql>,
+    pub connection: Connection,
 }
 
 // Make our own error that wraps `anyhow::Error`.
@@ -17,6 +17,7 @@ struct AppError(anyhow::Error);
 // Tell axum how to convert `AppError` into a response.
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
+        log::error!("Error: {}", self.0);
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             format!("Something went wrong: {}", self.0),
