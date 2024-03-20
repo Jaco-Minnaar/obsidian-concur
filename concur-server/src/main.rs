@@ -8,13 +8,13 @@ use dotenvy::dotenv;
 use libsql::Connection;
 use routes::{file::file, vault::vault, ServerState};
 use shuttle_axum::ShuttleAxum;
+use simplelog::{ColorChoice, Config, TermLogger, TerminalMode};
 
 #[shuttle_runtime::main]
 async fn axum(
     #[shuttle_turso::Turso(
         addr = "{secrets.LIBSQL_URL}",
-        token = "{secrets.LIBSQL_TOKEN}",
-        local_addr = "{secrets.LIBSQL_LOCAL_URL}"
+        token = "{secrets.LIBSQL_TOKEN}"
     )]
     client: Connection,
 ) -> ShuttleAxum {
@@ -25,7 +25,13 @@ async fn axum(
 
 async fn start(connection: Connection) -> Router {
     dotenv().ok();
-    // tracing_subscriber::fmt::init();
+    TermLogger::init(
+        log::LevelFilter::Debug,
+        Config::default(),
+        TerminalMode::Stdout,
+        ColorChoice::Auto,
+    )
+    .expect("Failed to initialize logger");
 
     let state = Arc::new(ServerState { connection });
 

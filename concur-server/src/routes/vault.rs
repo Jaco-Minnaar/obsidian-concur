@@ -19,13 +19,13 @@ async fn save(
     let mut results = state
         .connection
         .query(
-            "SELECT * FROM vault where name = ?1",
+            "SELECT * FROM vault where vault_name = ?1",
             libsql::params!(value.name.as_str()),
         )
         .await
         .expect("Failed to execute query");
 
-    if let Some(row) = results.next().await? {
+    if let Some(row) = results.next()? {
         log::debug!("Vault {} already exists. Returning it.", &value.name);
         let vault = Vault {
             id: row.get(0)?,
@@ -38,12 +38,12 @@ async fn save(
     let mut results = state
         .connection
         .query(
-            "INSERT INTO vault (name) VALUES (?1) RETURNING id, name",
+            "INSERT INTO vault (vault_name) VALUES (?1) RETURNING id, vault_name",
             libsql::params!(value.name.as_str()),
         )
         .await?;
 
-    if let Some(row) = results.next().await? {
+    if let Some(row) = results.next()? {
         log::debug!("Vault {} already exists. Returning it.", &value.name);
         let vault = Vault {
             id: row.get(0)?,
