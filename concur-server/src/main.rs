@@ -8,7 +8,7 @@ use dotenvy::dotenv;
 use libsql::Connection;
 use routes::{file::file, vault::vault, ServerState};
 use shuttle_axum::ShuttleAxum;
-use simplelog::{ColorChoice, Config, TermLogger, TerminalMode};
+use simplelog::{ColorChoice, CombinedLogger, ConfigBuilder, TermLogger, TerminalMode};
 
 #[shuttle_runtime::main]
 async fn axum(
@@ -25,12 +25,20 @@ async fn axum(
 
 async fn start(connection: Connection) -> Router {
     dotenv().ok();
-    TermLogger::init(
-        log::LevelFilter::Debug,
-        Config::default(),
-        TerminalMode::Stdout,
-        ColorChoice::Auto,
-    )
+    CombinedLogger::init(vec![
+        TermLogger::new(
+            log::LevelFilter::Warn,
+            ConfigBuilder::new().add_filter_ignore_str("concur").build(),
+            TerminalMode::Stdout,
+            ColorChoice::Always,
+        ),
+        TermLogger::new(
+            log::LevelFilter::Debug,
+            ConfigBuilder::new().add_filter_allow_str("concur").build(),
+            TerminalMode::Stdout,
+            ColorChoice::Always,
+        ),
+    ])
     .expect("Failed to initialize logger");
 
     let state = Arc::new(ServerState { connection });
